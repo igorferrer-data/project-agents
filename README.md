@@ -10,34 +10,38 @@ A Inteligência Artificial evoluiu de simples modelos de chat (LLMs) para **Sist
 - **Raciocinar**: Avaliar os resultados de suas ações e corrigir a rota se necessário.
 - **Memória**: Manter contexto de longo e curto prazo para personalizar a execução.
 
-## 🛠️ Como Agentes de IA são Criados?
+## 🛠️ Arquitetura de Implementação
 
-A arquitetura de um agente moderno geralmente baseia-se em quatro pilares fundamentais:
+O projeto segue uma progressão de complexidade dividida em quatro níveis:
 
-1.  **Cérebro (LLM)**: O modelo de linguagem (como Gemma 4, Claude 3.5, GPT-4) que serve como motor de raciocínio.
-2.  **Planejamento (Planning)**: Implementação de técnicas como *Chain-of-Thought* (Cadeia de Pensamento) ou *ReAct* (Reasoning and Acting) para estruturar a execução.
-3.  **Memória (Memory)**:
-    *   *Curto Prazo*: Context window do modelo.
-    *   *Longo Prazo*: Bancos de dados vetoriais (RAG - Retrieval Augmented Generation).
-4.  **Ferramentas (Tools/Action Space)**: Capacidade de executar código, fazer buscas na web ou interagir com sistemas de arquivos.
+### 🟢 Level 1: Simple Agent (Implementado)
+Focado em identidade e conversação básica.
+- **Funcionalidade**: Agentes com persona definida via System Prompt.
+- **Memória**: Implementação de persistência de histórico via JSON, permitindo que o agente lembre de conversas entre sessões.
+- **Exemplo**: *Astra*, assistente de pesquisa em IA.
 
-## 🚀 A Transformação do Trabalho
+### 🟡 Level 2: Tool-Enabled Agent (Implementado)
+Transição de "modelo de chat" para "modelo de ação".
+- **ToolManager**: Sistema centralizado de registro e execução de ferramentas.
+- **Capacidades**: Acesso ao sistema de arquivos (listar, ler, escrever e buscar arquivos via grep).
+- **Loop de Raciocínio**: Implementação do ciclo `Pensamento $\rightarrow$ Ação $\rightarrow$ Observação`.
+- **Exemplo**: *Astra-Tool*, capaz de interagir com o ambiente local para realizar tarefas técnicas.
 
-A ascensão dos agentes marca a transição da **Automação de Processos (RPA)** para a **Automação Cognitiva**.
+### 🟠 Level 3: Reasoning Agent (Planejado)
+Implementação de frameworks de raciocínio avançado como Chain-of-Thought (CoT) e ReAct para tarefas de alta complexidade.
 
-### 1. De Ferramenta para Colaborador
-O trabalho deixa de ser "eu uso a ferramenta X para fazer Y" e passa a ser "eu coordeno um agente que executa Y".
+### 🔴 Level 4: Multi-Agent Systems (Planejado)
+Orquestração de múltiplos agentes especializados trabalhando em paralelo para resolver problemas complexos.
 
-### 2. Escalabilidade de Especialistas
-Agentes podem replicar fluxos de trabalho de especialistas em diversas áreas (engenharia de software, análise de dados, jurídico), permitindo que humanos foquem na estratégia e na revisão criativa.
+## 🚀 Fluxo de Trabalho e Memória
 
-### 3. Novos Paradigmas de Produtividade
-- **Offloading Cognitivo**: Delegação de tarefas repetitivas de análise para agentes.
-- **Sistemas Multi-Agente**: Orquestração de vários agentes especializados (ex: um "Arquiteto", um "Coder" e um "Reviewer") trabalhando em paralelo.
+Para garantir a rastreabilidade e a eficiência do desenvolvimento no ambiente AerynOs:
+- **`PROJECT_JOURNAL.md`**: Diário de bordo com registros de todas as decisões arquiteturais e marcos de implementação.
+- **Persistência**: Todos os agentes possuem memória local persistente em JSON.
+- **Eficiência**: O projeto prioriza operações de sistema eficientes (`grep`, `sed`, `ls -R`).
 
-## 🎯 Objetivos deste Projeto
-
-- Explorar frameworks de criação de agentes (CrewAI, AutoGen, LangGraph).
+## 🎯 Objetivos do Projeto
+- Explorar frameworks de criação de agentes.
 - Implementar protótipos de agentes especializados para tarefas de engenharia.
 - Documentar a curva de aprendizado e os gargalos de implementação de agentes locais.
 
