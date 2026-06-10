@@ -27,8 +27,16 @@ Transição de "modelo de chat" para "modelo de ação".
 - **Loop de Raciocínio**: Implementação do ciclo `Pensamento $\rightarrow$ Ação $\rightarrow$ Observação`.
 - **Exemplo**: *Astra-Tool*, capaz de interagir com o ambiente local para realizar tarefas técnicas.
 
-### 🟠 Level 3: Reasoning Agent (Planejado)
-Implementação de frameworks de raciocínio avançado como Chain-of-Thought (CoT) e ReAct para tarefas de alta complexidade.
+### 🟠 Level 3: Reasoning Agent (Implementado)
+Implementação de frameworks de raciocínio avançado com foco em precisão e autoverificação.
+- **Super-Reasoning Loop**: Implementação de um ciclo robusto `Plan $\rightarrow$ Thought $\rightarrow$ Action $\rightarrow$ Observation $\rightarrow$ Critique $\rightarrow$ Verdict`.
+- **Protocolo JSON**: Comunicação estruturada via JSON para eliminar a fragilidade de parsing.
+- **Plan Checklist**: Rastreamento dinâmico de passos para evitar a perda de contexto em tarefas complexas.
+- **Crítica Adversária**: Sistema de revisão interna que desafia as conclusões do agente antes da resposta final.
+- **Capacidades Expandidas**:
+    - **Python Sandbox**: Execução de scripts Python isolados para processamento de dados.
+    - **RAG Lite**: Indexação de símbolos do projeto para buscas eficientes em bases de código extensas.
+- **Exemplo**: *Astra-SuperReasoning*, capaz de planejar, executar e validar tarefas técnicas complexas.
 
 ### 🔴 Level 4: Multi-Agent Systems (Planejado)
 Orquestração de múltiplos agentes especializados trabalhando em paralelo para resolver problemas complexos.
