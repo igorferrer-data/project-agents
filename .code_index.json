@@ -1,0 +1,57 @@
+{
+    "./project-agents/test_level3.py": [
+        "main"
+    ],
+    "./project-agents/test_level2.py": [
+        "main"
+    ],
+    "./project-agents/agents/level1_simple/main.py": [
+        "main"
+    ],
+    "./project-agents/agents/level1_simple/simple_agent.py": [
+        "SimpleAgent",
+        "__init__",
+        "_load_history",
+        "_save_history",
+        "chat",
+        "reset_memory"
+    ],
+    "./project-agents/agents/level3_reasoning/main.py": [
+        "main"
+    ],
+    "./project-agents/agents/level3_reasoning/reasoning_agent.py": [
+        "ReasoningAgent",
+        "__init__",
+        "_augment_persona_with_super_reasoning",
+        "_parse_json_response",
+        "_get_reviewer_feedback",
+        "chat"
+    ],
+    "./project-agents/agents/level2_tools/tool_agent.py": [
+        "ToolAgent",
+        "__init__",
+        "_augment_persona_with_tools",
+        "chat"
+    ],
+    "./project-agents/agents/level2_tools/main.py": [
+        "main"
+    ],
+    "./project-agents/core/config.py": [
+        "get_model_config"
+    ],
+    "./project-agents/tools/manager.py": [
+        "ToolManager",
+        "__init__",
+        "register_tool",
+        "execute",
+        "get_tool_definitions",
+        "_register_default_tools",
+        "_list_files",
+        "_read_file",
+        "_write_file",
+        "_grep_search",
+        "_python_executor",
+        "_code_indexer",
+        "_index_search"
+    ]
+}

@@ -1,5 +1,8 @@
 import os
 import subprocess
+import tempfile
+import re
+import json
 from typing import Any, Dict, List, Callable
 
 class ToolManager:
@@ -9,6 +12,7 @@ class ToolManager:
     """
     def __init__(self):
         self.tools: Dict[str, Callable] = {}
+        self.index_file = os.path.join(os.path.dirname(__file__), "../.code_index.json")
         self._register_default_tools()
 
     def register_tool(self, name: str, func: Callable, description: str):
@@ -60,6 +64,21 @@ class ToolManager:
             self._grep_search,
             "Searches for a pattern in a directory recursively. Args: {pattern: str, path: str}"
         )
+        self.register_tool(
+            "python_executor",
+            self._python_executor,
+            "Executes Python code in a sandboxed temporary file. Use this for complex data processing or calculations. Args: {code: str}"
+        )
+        self.register_tool(
+            "code_indexer",
+            self._code_indexer,
+            "Scans the project for class and function definitions and saves an index. Args: {path: str}"
+        )
+        self.register_tool(
+            "index_search",
+            self._index_search,
+            "Searches the project index for relevant files based on keywords. Args: {query: str}"
+        )
 
     # Tool Implementations
     def _list_files(self, path: str) -> str:
@@ -86,7 +105,6 @@ class ToolManager:
 
     def _grep_search(self, pattern: str, path: str) -> str:
         try:
-            # Using grep via subprocess for efficiency as per AerynOs rules
             result = subprocess.run(
                 ["grep", "-r", pattern, path],
                 capture_output=True,
@@ -96,3 +114,89 @@ class ToolManager:
             return result.stdout if result.stdout else "Nenhuma correspondência encontrada."
         except Exception as e:
             return f"Erro ao executar grep: {e}"
+
+    def _python_executor(self, code: str) -> str:
+        """Executes Python code safely in a temporary file."""
+        try:
+            # Basic safety check for dangerous modules
+            dangerous_modules = ['shutil', 'os.remove', 'os.rmdir', 'os.system', 'os.popen']
+            for mod in dangerous_modules:
+                if mod in code:
+                    return f"Erro de Segurança: O módulo ou função '{mod}' é proibido no executor."
+
+            with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode='w', encoding='utf-8') as tf:
+                tf.write(code)
+                tf_path = tf.name
+
+            # Run the script with a 10 second timeout
+            result = subprocess.run(
+                ["python3", tf_path],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                timeout=10
+            )
+
+            # Clean up temp file
+            os.remove(tf_path)
+
+            if result.returncode == 0:
+                return result.stdout if result.stdout else "Código executado com sucesso (sem saída)."
+            else:
+                return f"Erro na execução do código:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+        except subprocess.TimeoutExpired:
+            return "Erro: O código excedeu o tempo limite de 10 segundos."
+        except Exception as e:
+            return f"Erro inesperado no executor: {e}"
+
+    def _code_indexer(self, path: str) -> str:
+        """Scans the project for definitions and saves an index."""
+        try:
+            index = {}
+            # Regex to match 'class Name:' or 'def name('
+            pattern = re.compile(r"^(?:class|def)\s+(\w+)")
+
+            for root, dirs, files in os.walk(path):
+                # Skip hidden directories like .git or .claude
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                for file in files:
+                    if file.endswith('.py'):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                content = f.readlines()
+                                symbols = [match.group(1) for line in content if (match := pattern.match(line.strip()))]
+                                if symbols:
+                                    index[file_path] = symbols
+                        except Exception:
+                            continue
+
+            with open(self.index_file, 'w', encoding='utf-8') as f:
+                json.dump(index, f, indent=4)
+
+            return f"Indexação concluída. {len(index)} arquivos indexados em {self.index_file}."
+        except Exception as e:
+            return f"Erro ao indexar código: {e}"
+
+    def _index_search(self, query: str) -> str:
+        """Searches the saved index for keywords."""
+        try:
+            if not os.path.exists(self.index_file):
+                return "Erro: O índice não existe. Execute 'code_indexer' primeiro."
+
+            with open(self.index_file, 'r', encoding='utf-8') as f:
+                index = json.load(f)
+
+            results = []
+            query_words = query.lower().split()
+            for file_path, symbols in index.items():
+                # Check if any query word matches any symbol in the file
+                if any(word in symbol.lower() for word in query_words for symbol in symbols):
+                    results.append(file_path)
+
+            if results:
+                return "Arquivos relevantes encontrados:\n" + "\n".join(results)
+            else:
+                return "Nenhuma correspondência encontrada no índice."
+        except Exception as e:
+            return f"Erro ao buscar no índice: {e}"

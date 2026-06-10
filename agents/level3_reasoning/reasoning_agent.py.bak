@@ -1,0 +1,165 @@
+import openai
+import json
+import os
+import sys
+import re
+from typing import Dict, Any, List, Optional
+
+# Add project root to sys.path for imports
+PROJECT_ROOT = "/home/iferrer/project-agents"
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
+from agents.level2_tools.tool_agent import ToolAgent
+from tools.manager import ToolManager
+from core.config import get_model_config
+
+class ReasoningAgent(ToolAgent):
+    """
+    Level 3 Agent: Reasoning Agent.
+    Extends ToolAgent by implementing a formal reasoning framework (ReAct + CoT).
+    The agent must plan its approach, execute actions, critique the results,
+    and only then provide a final verdict.
+    """
+    def __init__(self, name: str, persona: str):
+        super().__init__(name, persona)
+        # Maintain a stateful plan throughout the conversation
+        self.current_plan: Optional[str] = None
+        # Update persona to include the reasoning protocol
+        self.persona = self._augment_persona_with_reasoning()
+
+    def _augment_persona_with_reasoning(self) -> str:
+        """
+        Adds the advanced reasoning protocol (PLAN, THOUGHT, ACTION, CRITIQUE, VERDICT)
+        to the agent's persona.
+        """
+        tools_desc = self.tool_manager.get_tool_definitions()
+        tools_text = "\n".join([f"- {t['name']}: {t['description']}" for t in tools_desc])
+
+        protocol = (
+            "\n\n--- ADVANCED REASONING PROTOCOL ---\n"
+            "You are now a Reasoning Agent. You must follow this strict state-based loop:\n\n"
+            "1. PLAN: Before taking any action, define a high-level numbered strategy to solve the user's request.\n"
+            "   Example: 'PLAN: 1. List files in root. 2. Find config file. 3. Read config file.'\n\n"
+            "2. THOUGHT: For every action, provide a brief internal monologue justifying why this action is the next step in the plan.\n"
+            "   Example: 'THOUGHT: I need to see what files are available to find the configuration file.'\n\n"
+            "3. ACTION: Call a tool using the format: tool_name(arg1='val1', arg2='val2')\n"
+            "   Example: 'ACTION: list_files(path=\"/home/iferrer/project-agents\")'\n"
+            "   --- END ACTION ---\n\n"
+            "4. CRITIQUE: After receiving a TOOL_RESULT, analyze it. Ask: 'Does this result satisfy the current step of my plan? Do I need to adjust my plan based on this new information?'\n"
+            "   Example: 'CRITIQUE: The file list is empty, so my plan to read a specific file is impossible. I must first check the parent directory.'\n\n"
+            "5. VERDICT: When you have all necessary information and have verified it, provide the final answer.\n"
+            "   Example: 'VERDICT: The system is configured to use port 8080.'\n\n"
+            "CRITICAL RULES:\n"
+            "- Never skip the PLAN phase at the start.\n"
+            "- Always perform a CRITIQUE after every single TOOL_RESULT.\n"
+            "- If the CRITIQUE reveals a flaw, output a new 'PLAN: <updated steps>' immediately.\n"
+            "- Only output VERDICT when you are certain the answer is correct and complete.\n\n"
+            f"Available Tools:\n{tools_text}"
+        )
+        return self.persona + protocol
+
+    def _parse_action(self, action_text: str) -> tuple[Optional[str], Dict[str, Any]]:
+        """
+        Robustly parses a tool call using regex.
+        Example: "list_files(path='/home/user', content='hi')" -> ("list_files", {"path": "/home/user", "content": "hi"})
+        """
+        # Regex to capture tool_name and the content inside parentheses
+        match = re.match(r"(\w+)\((.*)\)", action_text.strip())
+        if not match:
+            return None, {}
+
+        tool_name = match.group(1)
+        args_str = match.group(2)
+
+        # Parse arguments using a simple but more robust approach for quoted strings
+        args = {}
+        if args_str:
+            # This regex finds key=value pairs, handling single/double quotes
+            # It matches: key = 'value' OR key = "value" OR key = value
+            pairs = re.findall(r"(\w+)\s*=\s*(?:'([^']*)'|\"([^\"]*)\"|([^,\s\)]+))", args_str)
+            for pair in pairs:
+                key = pair[0]
+                # The value will be in one of the three capture groups (single, double, or unquoted)
+                value = pair[1] or pair[2] or pair[3]
+                args[key] = value
+
+        return tool_name, args
+
+    def chat(self, user_input: str) -> str:
+        """
+        Advanced reasoning loop: Plan -> Thought -> Action -> Observation -> Critique -> Verdict.
+        """
+        messages = [{"role": "system", "content": self.persona}]
+        messages.extend(self.history)
+        messages.append({"role": "user", "content": user_input})
+
+        max_iterations = 10
+        current_iteration = 0
+
+        # Tracking the plan state
+        self.current_plan = None
+
+        while current_iteration < max_iterations:
+            try:
+                # Inject current plan into prompt if it exists
+                prompt_context = ""
+                if self.current_plan:
+                    prompt_context = f"\n\nCURRENT PLAN:\n{self.current_plan}\n\nProceed with the next step."
+
+                # We append the context as a system message to guide the model
+                messages.append({"role": "system", "content": prompt_context})
+
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages
+                )
+                content = response.choices[0].message.content
+
+                # Remove the prompt_context from messages to avoid pollution in the next turn
+                if prompt_context:
+                    messages.pop()
+
+                # 1. Check for VERDICT (Termination)
+                if "VERDICT:" in content:
+                    verdict = content.split("VERDICT:")[1].strip()
+                    self.history.append({"role": "user", "content": user_input})
+                    self.history.append({"role": "assistant", "content": content})
+                    self._save_history()
+                    return verdict
+
+                # 2. Update Current Plan if a new PLAN block is found
+                if "PLAN:" in content:
+                    plan_part = content.split("PLAN:")[1].split("\n\n")[0].strip()
+                    self.current_plan = plan_part
+
+                # 3. Handle ACTION (Execution)
+                if "ACTION:" in content and "--- END ACTION ---" in content:
+                    action_part = content.split("ACTION:")[1].split("--- END ACTION ---")[0].strip()
+                    tool_name, args = self._parse_action(action_part)
+
+                    if tool_name:
+                        observation = self.tool_manager.execute(tool_name, args)
+
+                        # Append the model's reasoning and the tool result to the history
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "system", "content": f"TOOL_RESULT: {observation}\n\nNow perform a CRITIQUE of this result and determine the next step."})
+
+                        current_iteration += 1
+                        continue
+                    else:
+                        messages.append({"role": "system", "content": "Error: The ACTION format was invalid. Please use tool_name(key='val')."})
+                        current_iteration += 1
+                        continue
+
+                # 4. Handle generic response (if no Action or Verdict)
+                # If the agent is just thinking/critiquing without acting, we might be stuck.
+                # We'll feed it back and ask for the next step.
+                messages.append({"role": "assistant", "content": content})
+                messages.append({"role": "system", "content": "Please proceed to the next step of your reasoning protocol (PLAN, ACTION, or VERDICT)."})
+                current_iteration += 1
+
+            except Exception as e:
+                return f"Erro no loop de raciocínio avançado: {str(e)}"
+
+        return "Erro: O agente atingiu o limite máximo de iterações sem chegar a um VERDICT."

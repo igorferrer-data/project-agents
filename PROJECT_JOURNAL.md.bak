@@ -22,21 +22,20 @@ Este documento serve como a memória de longo prazo do projeto, registrando deci
     - Decidido a transição para memória persistente para evitar a perda de contexto entre sessões.
     - Implementação de `PROJECT_JOURNAL.md` para rastreio estratégico e arquivos JSON para memória operacional dos agentes.
 
-### [2026-06-10] - Upgrade Super-Reasoning (Level 3+)
-**Objetivo:** Transformar o Reasoning Agent em um sistema de super-raciocínio robusto e capaz.
+### [2026-06-09] - Evolução para o Level 3 (Reasoning)
+**Objetivo:** Implementar capacidades de raciocínio avançado, planejamento e autocorreção.
 
-- **Robustez Técnica:**
-    - Transição total para protocolo **JSON**, eliminando a fragilidade de parsing via Regex.
-    - Implementação de `_parse_json_response` para lidar com blocos de código markdown.
-- **Qualidade do Raciocínio:**
-    - Implementação de **Plan Checklist** dinâmico, injetando o status do plano em cada iteração.
-    - Implementação de **Crítica Adversária**: Loop interno com persona de "Reviewer" que desafia a lógica do agente antes de cada ação.
-    - Inclusão de exemplos de *Few-Shot Recovery* no prompt para lidar com falhas de ferramentas.
-- **Novas Capacidades:**
-    - **Python Sandbox**: Adicionado `python_executor` ao `ToolManager` com timeout e filtros de segurança.
-    - **RAG Lite**: Implementado `code_indexer` e `index_search` para mapeamento rápido de símbolos do projeto.
+- **Implementações:**
+    - Criado **Level 3: Reasoning Agent**.
+        - Implementado `ReasoningAgent` herdando de `ToolAgent`.
+        - Implementado o protocolo de raciocínio expandido: `PLAN` $\rightarrow$ `THOUGHT` $\rightarrow$ `ACTION` $\rightarrow$ `CRITIQUE` $\rightarrow$ `VERDICT`.
+        - Implementado parser de ferramentas baseado em Regex para maior robustez com argumentos complexos.
+        - Implementada persistência total da cadeia de raciocínio no histórico JSON.
+- **Decisões de Arquitetura:**
+    - Adoção de uma máquina de estados no loop de `chat()` para garantir que o agente planeje antes de agir e critique antes de concluir.
+    - Uso de `self.current_plan` para manter a coerência do objetivo através de múltiplas iterações.
 - **Validação:**
-    - Teste de estresse concluído: O agente indexou o projeto, localizou o `ToolManager`, escreveu e executou um script Python para contar arquivos e entregou o `VERDICT` correto.
+    - Testado com sucesso via `test_level3.py`, demonstrando a capacidade de decompor tarefas complexas e validar resultados via `CRITIQUE` antes de emitir o `VERDICT`.
 
 ---
 *Registrado por Laura (AI Agent).*
