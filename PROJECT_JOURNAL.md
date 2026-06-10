@@ -22,7 +22,22 @@ Este documento serve como a memória de longo prazo do projeto, registrando deci
     - Decidido a transição para memória persistente para evitar a perda de contexto entre sessões.
     - Implementação de `PROJECT_JOURNAL.md` para rastreio estratégico e arquivos JSON para memória operacional dos agentes.
 
+### [2026-06-09] - Implementação do Level 2 (Tools)
+**Objetivo:** Transição de um modelo de chat para um modelo de ação, permitindo interação com o sistema local.
+
+- **Implementações:**
+    - Criado `ToolManager`: Sistema centralizado para registro e execução de funções externas.
+    - Implementado **Level 2: Tool-Enabled Agent**.
+        - Criado `ToolAgent` herdando de `SimpleAgent`.
+        - Implementado o ciclo básico de raciocínio ReAct (`Pensamento $\rightarrow$ Ação $\rightarrow$ Observação`).
+    - Adicionadas ferramentas fundamentais de sistema: `list_files`, `read_file`, `write_file` e `grep_search`.
+- **Decisões de Arquitetura:**
+    - Desacoplamento da lógica de ferramentas (`ToolManager`) da lógica do agente, permitindo que qualquer agente de nível superior possa utilizar as mesmas ferramentas.
+- **Validação:**
+    - Implementação da agente **Astra-Tool**, capaz de navegar e manipular arquivos no ambiente AerynOs.
+
 ### [2026-06-10] - Upgrade Super-Reasoning (Level 3+)
+
 **Objetivo:** Transformar o Reasoning Agent em um sistema de super-raciocínio robusto e capaz.
 
 - **Robustez Técnica:**
